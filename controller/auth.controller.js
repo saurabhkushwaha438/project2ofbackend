@@ -4,8 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/auth.model.js"
 
 export const signup = async(req,res,next)=>{
-        const session = await mongoose.startSession();
-        session.startTransaction();
+      
         try {
             const{name,email,password}=req.body;
             const existingUser = await User.findOne({email});
@@ -16,25 +15,31 @@ export const signup = async(req,res,next)=>{
             }
             const salt = await bcrypt.genSalt(10);
             const hashedPassword =await bcrypt.hash(password,salt);
-            const newUser = await User.create([{name,email,password:hashedPassword}],{session});
-            const token = jwt.sign({userid:newUser[0]._id},process.env.JWT_TOKEN,{expiresIn:'1d'});
+            const newUser = await User.create([{name,email,password:hashedPassword}]);
+            const token = jwt.sign({userId:newUser[0]._id},process.env.JWT_TOKEN,{expiresIn:'1d'});
 
-            session.commitTransaction();
-            session.endSession();
+            // Remove password from user object before sending
+            const userWithoutPassword = {
+                _id: newUser[0]._id,
+                name: newUser[0].name,
+                email: newUser[0].email,
+                date: newUser[0].date
+            };
+
             res.status(201).json({
                 success:true,
                 message:"user created successfully",
-                data:{token,user:newUser[0]}
+                data:{token,user:userWithoutPassword}
             })
 
         } catch (error) {
-            session.abortTransaction();
-            session.endSession();
+           
             next(error);
         }
 }
 
 export const signin = async(req,res,next)=>{
+
     const {email,password}=req.body;
     const isValid =await User.findOne({email});
     if(!isValid){
@@ -50,14 +55,23 @@ export const signin = async(req,res,next)=>{
     }
 
     const token = jwt.sign({userId:isValid._id},process.env.JWT_TOKEN,{expiresIn:'1d'});
-        res.status(200).json(
-            {
-                success:true,
-                message:"user signed in successfully",
-                data:{
-                    token,
-                    isValid
-                }
+    
+    // Remove password from user object before sending
+    const userWithoutPassword = {
+        _id: isValid._id,
+        name: isValid.name,
+        email: isValid.email,
+        date: isValid.date
+    };
+    
+    res.status(200).json(
+        {
+            success:true,
+            message:"user signed in successfully",
+            data:{
+                token,
+                user: userWithoutPassword
             }
-        )
+        }
+    )
 }

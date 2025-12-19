@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 const{Schema} = mongoose;
+
+
 const usercontents = new Schema({
     email:"String",
     contents:[
